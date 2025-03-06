@@ -4,21 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_call:
-    inputs:
-      ai_provider:
-        type: string
-        default: "gemini"
-        required: false
-        description: "AI provider to use (gemini, claude, openai, mistral)"
     secrets:
       GOOGLE_API_KEY:
-        required: false
-      ANTHROPIC_API_KEY:
-        required: false
-      OPENAI_API_KEY:
-        required: false
-      MISTRAL_API_KEY:
-        required: false
+        required: true
+
 
 jobs:
   analyze_pr:
@@ -68,104 +57,40 @@ jobs:
           # Combine template with PR context and escape for JSON
           FULL_PROMPT=$(printf "%s\n\nHere are the changes:\n%s" "$PROMPT_TEMPLATE" "$(cat pr_context.txt)")
           ESCAPED_PROMPT=$(echo "$FULL_PROMPT" | jq -Rs .)
-          
-          # Prepare the request JSON and set API_URL/API_KEY based on provider using if/elif
-          if [ "${{ inputs.ai_provider }}" = "gemini" ]; then
-            API_KEY="${{ secrets.GOOGLE_API_KEY }}"
-            API_URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY"
-            cat > request.json <<EOF
-            {
-              "contents": [{
-                "parts": [{
-                  "text": ${ESCAPED_PROMPT}
-                }]
-              }],
-              "generationConfig": {
-                "temperature": 0.7,
-                "topK": 40,
-                "topP": 0.95,
-                "maxOutputTokens": 2048
-              }
-            }
-            EOF
-          elif [ "${{ inputs.ai_provider }}" = "claude" ]; then
-            API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
-            API_URL="https://api.anthropic.com/v1/messages"
-            cat > request.json <<EOF
-            {
-              "model": "claude-3-opus-20240229",
-              "messages": [{
-                "role": "user",
-                "content": ${ESCAPED_PROMPT}
-              }],
-              "max_tokens": 2048
-            }
-            EOF
-          elif [ "${{ inputs.ai_provider }}" = "openai" ]; then
-            API_KEY="${{ secrets.OPENAI_API_KEY }}"
-            API_URL="https://api.openai.com/v1/chat/completions"
-            cat > request.json <<EOF
-            {
-              "model": "gpt-4",
-              "messages": [{
-                "role": "user",
-                "content": ${ESCAPED_PROMPT}
-              }],
-              "max_tokens": 2048
-            }
-            EOF
-                      elif [ "${{ inputs.ai_provider }}" = "mistral" ]; then
-                        API_KEY="${{ secrets.MISTRAL_API_KEY }}"
-                        API_URL="https://api.mistral.ai/v1/chat/completions"
-                        cat > request.json <<EOF
-            {
-              "model": "mistral-large",
-              "messages": [{
-                "role": "user",
-                "content": ${ESCAPED_PROMPT}
-              }],
-              "max_tokens": 2048
-            }
-            EOF
-          else
-            echo "Unsupported AI provider: ${{ inputs.ai_provider }}"
-            exit 1
-          fi
-          
-          # Make the API call
-          RESPONSE=$(curl -s -X POST "$API_URL" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $API_KEY" \
-            -d @request.json)
-          
-          # Extract generated text using if statements
-          if [ "${{ inputs.ai_provider }}" = "gemini" ]; then
-            REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
-          elif [ "${{ inputs.ai_provider }}" = "claude" ]; then
-            REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.content[0].text')
-          elif [ "${{ inputs.ai_provider }}" = "openai" ] || [ "${{ inputs.ai_provider }}" = "mistral" ]; then
-            REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
-          fi
-          
-          # Check for errors
-          if [ -z "$REVIEW_CONTENT" ] || [ "$REVIEW_CONTENT" = "null" ]; then
-            echo "Error or empty response from ${{ inputs.ai_provider }} API."
-            exit 1
-          fi
-          
-          # Save and parse content for debugging/posting
-          echo "$REVIEW_CONTENT" > review_content.txt
-          echo "$REVIEW_CONTENT" | grep -E 'FILE:|LINE:|COMMENT:' > comments.txt
-          
-          # Format the result for posting
-          cat <<EOF >> $GITHUB_ENV
+
+          # Make the API call to Gemini
+          cat > request.json << EOF
+          {
+            "contents": [{
+              "parts":[{
+                "text": ${ESCAPED_PROMPT}
+              }]
+            }],
+            "generationConfig": {
+              "temperature": 0.7,
+              "topK": 40,
+              "topP": 0.95,
+              "maxOutputTokens": 2048
+          }
+          EOF
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${{ secrets.GOOGLE_API_KEY }}" \
+
+          # Check for API errors
+          if [ "$(echo "$RESPONSE" | jq -r '.error')" != "null" ]; then
+            echo "Error from Gemini API: $(echo "$RESPONSE" | jq -r '.error.message')"
+
+          # Extract the generated text from response
+          REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+
+          # Format and save the response
+          cat > result.txt << EOF
           RESULT<<EOFMARKER
-          # 🤖 Automated PR Review (${{ inputs.ai_provider || 'gemini' }})
+          # 🤖 Automated PR Review
 
           $REVIEW_CONTENT
 
           ---
-          _Generated by PR Review Bot_ | [📝 Report Issues](https://github.com/houseworksinc/pr-review-bot/issues)
+          _Generated by PR Review Bot (Gemini)_ | [📝 Report Issues](https://github.com/houseworksinc/pr-review-bot/issues)
           EOFMARKER
           EOF
 
