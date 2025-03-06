@@ -64,6 +64,8 @@ jobs:
         run: |
           # Read the prompt template
           PROMPT_TEMPLATE=$(cat prompts/prompt_template.txt)
+          echo "Prompt template content:"
+          echo "$PROMPT_TEMPLATE"
           
           # Combine template with PR context and escape for JSON
           FULL_PROMPT=$(printf "%s\n\nHere are the changes:\n%s" "$PROMPT_TEMPLATE" "$(cat pr_context.txt)")
