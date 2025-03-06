@@ -48,59 +48,27 @@ jobs:
       - name: Analyze PR with OpenAI
         id: analyze_pr
         run: |
-          PR_CONTEXT=$(cat pr_context.txt)
+          PR_CONTEXT=$(cat pr_context.txt | jq -R -s '.')
           
           RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
-          -d "{
-            \"model\": \"gpt-4\",
-            \"messages\": [
-              {\"role\": \"system\", \"content\": \"You are an expert code reviewer. Analyze code changes thoroughly and provide specific, actionable feedback. Focus on code quality, security, and maintainability. Be concise but comprehensive. If reviewing infrastructure code, pay special attention to security configurations and best practices.\"},
-              {\"role\": \"user\", \"content\": \"Review this PR and structure your analysis as follows:
-
-                ## 📝 Summary
-                - Core changes and purpose
-                - Files affected
-                - Impact assessment
-                - Breaking changes (if any)
-
-                ## 🔍 Technical Analysis
-                - Implementation quality
-                - Logic issues/bugs
-                - Error handling
-                - Performance implications
-                - Test coverage
-                - Resource management (if applicable)
-
-                ## 🔒 Security Review
-                - Security vulnerabilities
-                - Access control issues
-                - Data protection
-                - Input validation
-                - Sensitive data exposure
-                - Configuration risks
-
-                ## 💡 Code Quality
-                - Naming conventions
-                - Code organization
-                - Documentation completeness
-                - Maintainability
-                - Best practices adherence
-                - Potential refactoring needs
-
-                ## 🎯 Recommendations
-                - Specific improvements
-                - Alternative approaches
-                - Additional tests needed
-                - Documentation updates
-
-                Keep sections focused and actionable. Mark 'No issues identified' if a section has no concerns.
-
-                Here are the changes:
-                ${PR_CONTEXT}\"}
+          -d @- << EOF
+          {
+            "model": "gpt-4",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are an expert code reviewer. Analyze code changes thoroughly and provide specific, actionable feedback. Focus on code quality, security, and maintainability. Be concise but comprehensive. If reviewing infrastructure code, pay special attention to security configurations and best practices."
+              },
+              {
+                "role": "user",
+                "content": "Review this PR and structure your analysis as follows:\n\n## 📝 Summary\n- Core changes and purpose\n- Files affected\n- Impact assessment\n- Breaking changes (if any)\n\n## 🔍 Technical Analysis\n- Implementation quality\n- Logic issues/bugs\n- Error handling\n- Performance implications\n- Test coverage\n- Resource management (if applicable)\n\n## 🔒 Security Review\n- Security vulnerabilities\n- Access control issues\n- Data protection\n- Input validation\n- Sensitive data exposure\n- Configuration risks\n\n## 💡 Code Quality\n- Naming conventions\n- Code organization\n- Documentation completeness\n- Maintainability\n- Best practices adherence\n- Potential refactoring needs\n\n## 🎯 Recommendations\n- Specific improvements\n- Alternative approaches\n- Additional tests needed\n- Documentation updates\n\nKeep sections focused and actionable. Mark 'No issues identified' if a section has no concerns.\n\nHere are the changes:\n${PR_CONTEXT}"
+              }
             ]
-          }")
+          }
+          EOF
+          )
 
           # Check for API errors
           if [ "$(echo "$RESPONSE" | jq -r '.error')" != "null" ]; then
