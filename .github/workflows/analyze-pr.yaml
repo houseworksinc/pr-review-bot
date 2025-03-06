@@ -62,109 +62,105 @@ jobs:
       - name: Analyze PR
         id: analyze_pr
         run: |
-          # Read the prompt template from an external file
-          PROMPT_TEMPLATE=$(cat prompts/prompt_template.txt)
-
+          # Read the prompt template
+          PROMPT_TEMPLATE=$(cat .github/workflows/prompt_template.txt)
+          
           # Combine template with PR context and escape for JSON
           FULL_PROMPT=$(printf "%s\n\nHere are the changes:\n%s" "$PROMPT_TEMPLATE" "$(cat pr_context.txt)")
           ESCAPED_PROMPT=$(echo "$FULL_PROMPT" | jq -Rs .)
-
-          # Determine the API key based on the provider (default to Gemini)
-          case "${{ inputs.ai_provider || 'gemini' }}" in
-            "gemini")
-              API_KEY="${{ secrets.GOOGLE_API_KEY }}"
-              API_URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY"
-              REQUEST_BODY=$(cat <<EOF
-              {
-                "contents": [{
-                  "parts": [{
-                    "text": ${ESCAPED_PROMPT}
-                  }]
-                }],
-                "generationConfig": {
-                  "temperature": 0.7,
-                  "topK": 40,
-                  "topP": 0.95,
-                  "maxOutputTokens": 2048
-                }
+          
+          # Prepare the request JSON and set API_URL/API_KEY based on provider using if/elif
+          if [ "${{ inputs.ai_provider }}" = "gemini" ]; then
+            API_KEY="${{ secrets.GOOGLE_API_KEY }}"
+            API_URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY"
+            cat > request.json <<EOF
+            {
+              "contents": [{
+              "parts": [{
+                "text": ${ESCAPED_PROMPT}
+              }]
+              }],
+              "generationConfig": {
+                "temperature": 0.7,
+                "topK": 40,
+                "topP": 0.95,
+                "maxOutputTokens": 2048
               }
-              EOF
-              )
-              ;;
-            "claude")
-              API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
-              API_URL="https://api.anthropic.com/v1/messages"
-              REQUEST_BODY=$(cat <<EOF
-              {
-                "model": "claude-3-opus-20240229",
-                "messages": [{
-                  "role": "user",
-                  "content": ${ESCAPED_PROMPT}
-                }],
-                "max_tokens": 2048
-              }
-              EOF
-              )
-              ;;
-            "openai")
-              API_KEY="${{ secrets.OPENAI_API_KEY }}"
-              API_URL="https://api.openai.com/v1/chat/completions"
-              REQUEST_BODY=$(cat <<EOF
-              {
-                "model": "gpt-4",
-                "messages": [{
-                  "role": "user",
-                  "content": ${ESCAPED_PROMPT}
-                }],
-                "max_tokens": 2048
-              }
-              EOF
-              )
-              ;;
-            "mistral")
-              API_KEY="${{ secrets.MISTRAL_API_KEY }}"
-              API_URL="https://api.mistral.ai/v1/chat/completions"
-              REQUEST_BODY=$(cat <<EOF
-              {
-                "model": "mistral-large",
-                "messages": [{
-                  "role": "user",
-                  "content": ${ESCAPED_PROMPT}
-                }],
-                "max_tokens": 2048
-              }
-              EOF
-              )
-              ;;
-          esac
-
+            }
+            EOF
+          elif [ "${{ inputs.ai_provider }}" = "claude" ]; then
+            API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
+            API_URL="https://api.anthropic.com/v1/messages"
+            cat > request.json <<EOF
+            {
+              "model": "claude-3-opus-20240229",
+              "messages": [{
+                "role": "user",
+                "content": ${ESCAPED_PROMPT}
+              }],
+              "max_tokens": 2048
+            }
+            EOF
+          elif [ "${{ inputs.ai_provider }}" = "openai" ]; then
+            API_KEY="${{ secrets.OPENAI_API_KEY }}"
+            API_URL="https://api.openai.com/v1/chat/completions"
+            cat > request.json <<EOF
+            {
+              "model": "gpt-4",
+              "messages": [{
+                "role": "user",
+                "content": ${ESCAPED_PROMPT}
+              }],
+              "max_tokens": 2048
+            }
+            EOF
+                      elif [ "${{ inputs.ai_provider }}" = "mistral" ]; then
+                        API_KEY="${{ secrets.MISTRAL_API_KEY }}"
+                        API_URL="https://api.mistral.ai/v1/chat/completions"
+                        cat > request.json <<EOF
+            {
+              "model": "mistral-large",
+              "messages": [{
+                "role": "user",
+                "content": ${ESCAPED_PROMPT}
+              }],
+              "max_tokens": 2048
+            }
+            EOF
+          else
+            echo "Unsupported AI provider: ${{ inputs.ai_provider }}"
+            exit 1
+          fi
+          
           # Make the API call
           RESPONSE=$(curl -s -X POST "$API_URL" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $API_KEY" \
-            -d "$REQUEST_BODY")
-
-          # Extract the generated text from response
-          case "${{ inputs.ai_provider || 'gemini' }}" in
-            "gemini")
-              REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
-              ;;
-            "claude")
-              REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.content[0].text')
-              ;;
-            "openai" | "mistral")
-              REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
-              ;;
-          esac
-
-          # Save and parse the review content
+            -d @request.json)
+          
+          # Extract generated text using if statements
+          if [ "${{ inputs.ai_provider }}" = "gemini" ]; then
+            REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+          elif [ "${{ inputs.ai_provider }}" = "claude" ]; then
+            REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.content[0].text')
+          elif [ "${{ inputs.ai_provider }}" = "openai" ] || [ "${{ inputs.ai_provider }}" = "mistral" ]; then
+            REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+          fi
+          
+          # Check for errors
+          if [ -z "$REVIEW_CONTENT" ] || [ "$REVIEW_CONTENT" = "null" ]; then
+            echo "Error or empty response from ${{ inputs.ai_provider }} API."
+            exit 1
+          fi
+          
+          # Save and parse content for debugging/posting
           echo "$REVIEW_CONTENT" > review_content.txt
           echo "$REVIEW_CONTENT" | grep -E 'FILE:|LINE:|COMMENT:' > comments.txt
-
-          # Format the result
+          
+          # Format the result for posting
           cat <<EOF >> $GITHUB_ENV
           RESULT<<EOFMARKER
-          # 🤖 Automated PR Review (${{ inputs.ai_provider || 'gemini' }})
+          # 🤖 Automated PR Review (${{ inputs.ai_provider }})
 
           $REVIEW_CONTENT
 
