@@ -92,6 +92,11 @@ jobs:
           - Additional tests needed
           - Documentation updates
 
+          For each issue or suggestion, provide the following format:
+          FILE: <file_path>
+          LINE: <line_number>
+          COMMENT: <your_comment>
+
           Keep sections focused and actionable. Mark 'No issues identified' if a section has no concerns.
           EOF
           
@@ -130,6 +135,12 @@ jobs:
           # Extract the generated text from response
           REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
 
+          # Save the review content for debugging
+          echo "$REVIEW_CONTENT" > review_content.txt
+
+          # Parse the review content for line-specific comments
+          echo "$REVIEW_CONTENT" | grep -E 'FILE:|LINE:|COMMENT:' > comments.txt
+
           # Format and save the response
           cat > result.txt << EOF
           RESULT<<EOFMARKER
@@ -152,26 +163,25 @@ jobs:
 
       - name: Add Line Comments
         run: |
-          # Parse the review content for line-specific comments
-          # This is a placeholder for the logic to parse and extract line comments
-          # You need to implement the logic to parse the review content and extract line numbers and comments
-          # For example, you can use regex or a custom parser to extract line numbers and comments
-          # Then, use the GitHub API to add line comments
-
-          # Example of adding a line comment using the GitHub API
-          # Replace with actual line number, file path, and comment
-          LINE_NUMBER=10
-          FILE_PATH="src/main.py"
-          COMMENT="This line needs improvement."
-
-          curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d @- <<EOF
-          {
-            "body": "$COMMENT",
-            "path": "$FILE_PATH",
-            "line": $LINE_NUMBER,
-            "side": "RIGHT"
-          }
-          EOF
+          # Read the comments file and post line-specific comments
+          while IFS= read -r line; do
+            if [[ "$line" == FILE:* ]]; then
+              FILE_PATH=$(echo "$line" | cut -d' ' -f2-)
+            elif [[ "$line" == LINE:* ]]; then
+              LINE_NUMBER=$(echo "$line" | cut -d' ' -f2-)
+            elif [[ "$line" == COMMENT:* ]]; then
+              COMMENT=$(echo "$line" | cut -d' ' -f2-)
+              # Post the comment using the GitHub API
+              curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                -d @- <<EOF
+              {
+                "body": "$COMMENT",
+                "path": "$FILE_PATH",
+                "line": $LINE_NUMBER,
+                "side": "RIGHT"
+              }
+              EOF
+            fi
+          done < comments.txt
