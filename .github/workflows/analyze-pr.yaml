@@ -63,7 +63,7 @@ jobs:
         id: analyze_pr
         run: |
           # Read the prompt template
-          PROMPT_TEMPLATE=$(cat .github/workflows/prompt_template.txt)
+          PROMPT_TEMPLATE=$(cat prompts/prompt_template.txt)
           
           # Combine template with PR context and escape for JSON
           FULL_PROMPT=$(printf "%s\n\nHere are the changes:\n%s" "$PROMPT_TEMPLATE" "$(cat pr_context.txt)")
@@ -73,7 +73,7 @@ jobs:
           if [ "${{ inputs.ai_provider }}" = "gemini" ]; then
             API_KEY="${{ secrets.GOOGLE_API_KEY }}"
             API_URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$API_KEY"
-            cat > request.json <<EOF
+            cat > request.json <<-EOF
             {
               "contents": [{
               "parts": [{
@@ -91,7 +91,7 @@ jobs:
           elif [ "${{ inputs.ai_provider }}" = "claude" ]; then
             API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
             API_URL="https://api.anthropic.com/v1/messages"
-            cat > request.json <<EOF
+            cat > request.json <<-EOF
             {
               "model": "claude-3-opus-20240229",
               "messages": [{
@@ -104,7 +104,7 @@ jobs:
           elif [ "${{ inputs.ai_provider }}" = "openai" ]; then
             API_KEY="${{ secrets.OPENAI_API_KEY }}"
             API_URL="https://api.openai.com/v1/chat/completions"
-            cat > request.json <<EOF
+            cat > request.json <<-EOF
             {
               "model": "gpt-4",
               "messages": [{
@@ -114,10 +114,10 @@ jobs:
               "max_tokens": 2048
             }
             EOF
-                      elif [ "${{ inputs.ai_provider }}" = "mistral" ]; then
-                        API_KEY="${{ secrets.MISTRAL_API_KEY }}"
-                        API_URL="https://api.mistral.ai/v1/chat/completions"
-                        cat > request.json <<EOF
+          elif [ "${{ inputs.ai_provider }}" = "mistral" ]; then
+            API_KEY="${{ secrets.MISTRAL_API_KEY }}"
+            API_URL="https://api.mistral.ai/v1/chat/completions"
+            cat > request.json <<-EOF
             {
               "model": "mistral-large",
               "messages": [{
