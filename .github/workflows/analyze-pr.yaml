@@ -63,65 +63,104 @@ jobs:
         id: analyze_pr
         run: |
           # Read the prompt template from an external file
-          PROMPT_TEMPLATE=$(cat prompts/prompt_template.txt )
+          PROMPT_TEMPLATE=$(cat prompts/prompt_template.txt)
           
           # Combine template with PR context and escape for JSON
           FULL_PROMPT=$(printf "%s\n\nHere are the changes:\n%s" "$PROMPT_TEMPLATE" "$(cat pr_context.txt)")
           ESCAPED_PROMPT=$(echo "$FULL_PROMPT" | jq -Rs .)
           
-          # Make the API call to Gemini
-          cat > request.json << EOF
-          {
-            "contents": [{
-              "parts":[{
-                "text": ${ESCAPED_PROMPT}
-              }]
-            }],
-            "generationConfig": {
-              "temperature": 0.7,
-              "topK": 40,
-              "topP": 0.95,
-              "maxOutputTokens": 2048
-            }
-          }
-          EOF
-          
           # Configure API endpoints and parameters based on provider
           case "${{ inputs.ai_provider }}" in
             "gemini")
-              RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${{ secrets.GOOGLE_API_KEY }}" \
-                -H "Content-Type: application/json" \
-                -d @request.json)
+              API_URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
+              REQUEST_BODY=$(cat <<EOF
+              {
+                "contents": [{
+                  "parts":[{
+                    "text": ${ESCAPED_PROMPT}
+                  }]
+                }],
+                "generationConfig": {
+                  "temperature": 0.7,
+                  "topK": 40,
+                  "topP": 0.95,
+                  "maxOutputTokens": 2048
+                }
+              }
+              EOF
+              )
               ;;
             "claude")
-              RESPONSE=$(curl -s -X POST "https://api.anthropic.com/v1/messages" \
-                -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
-                -H "Content-Type: application/json" \
-                -H "anthropic-version: 2023-06-01" \
-                -d @request.json)
+              API_URL="https://api.anthropic.com/v1/messages"
+              REQUEST_BODY=$(cat <<EOF
+              {
+                "model": "claude-3-opus-20240229",
+                "messages": [{
+                  "role": "user",
+                  "content": ${ESCAPED_PROMPT}
+                }],
+                "max_tokens": 2048
+              }
+              EOF
+              )
               ;;
             "openai")
-              RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
-                -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
-                -H "Content-Type: application/json" \
-                -d @request.json)
+              API_URL="https://api.openai.com/v1/chat/completions"
+              REQUEST_BODY=$(cat <<EOF
+              {
+                "model": "gpt-4",
+                "messages": [{
+                  "role": "user",
+                  "content": ${ESCAPED_PROMPT}
+                }],
+                "max_tokens": 2048
+              }
+              EOF
+              )
               ;;
             "mistral")
-              RESPONSE=$(curl -s -X POST "https://api.mistral.ai/v1/chat/completions" \
-                -H "Authorization: Bearer ${{ secrets.MISTRAL_API_KEY }}" \
-                -H "Content-Type: application/json" \
-                -d @request.json)
+              API_URL="https://api.mistral.ai/v1/chat/completions"
+              REQUEST_BODY=$(cat <<EOF
+              {
+                "model": "mistral-large",
+                "messages": [{
+                  "role": "user",
+                  "content": ${ESCAPED_PROMPT}
+                }],
+                "max_tokens": 2048
+              }
+              EOF
+              )
               ;;
           esac
 
+          # Make the API call
+          RESPONSE=$(curl -s -X POST "$API_URL" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.${inputs.ai_provider}_API_KEY }}" \
+            -d "$REQUEST_BODY")
+
           # Check for API errors
           if [ "$(echo "$RESPONSE" | jq -r '.error')" != "null" ]; then
-            echo "Error from Gemini API: $(echo "$RESPONSE" | jq -r '.error.message')"
+            echo "Error from ${{ inputs.ai_provider }} API: $(echo "$RESPONSE" | jq -r '.error.message')"
             exit 1
           fi
 
           # Extract the generated text from response
-          REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+          case "${{ inputs.ai_provider }}" in
+            "gemini")
+              REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text')
+              ;;
+            "claude")
+              REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.content[0].text')
+              ;;
+            "openai")
+              REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+              ;;
+            "mistral")
+              REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+              ;;
+          esac
 
           # Save the review content for debugging
           echo "$REVIEW_CONTENT" > review_content.txt
@@ -137,7 +176,7 @@ jobs:
           $REVIEW_CONTENT
 
           ---
-          _Generated by PR Review Bot_ | [📝 Report Issues](https://github.com/houseworksinc/pr-review-bot/issues)
+          _Generated by PR Review Bot (${{ inputs.ai_provider }})_ | [📝 Report Issues](https://github.com/houseworksinc/pr-review-bot/issues)
           EOFMARKER
           EOF
           
@@ -153,8 +192,7 @@ jobs:
         id: parse_comments
         run: |
           # Create a JSON array of comments
-          echo "comments=[]" >> $GITHUB_OUTPUT
-          comment_json="["
+          comment_json="[]"
           while IFS= read -r line; do
             if [[ "$line" == FILE:* ]]; then
               FILE_PATH=$(echo "$line" | cut -d' ' -f2-)
@@ -162,10 +200,10 @@ jobs:
               LINE_NUMBER=$(echo "$line" | cut -d' ' -f2-)
             elif [[ "$line" == COMMENT:* ]]; then
               COMMENT=$(echo "$line" | cut -d' ' -f2-)
-              comment_json+="{\"body\":\"$COMMENT\",\"path\":\"$FILE_PATH\",\"line\":$LINE_NUMBER,\"side\":\"RIGHT\"},"
+              COMMENT_JSON=$(jq -n --arg body "$COMMENT" --arg path "$FILE_PATH" --argjson line "$LINE_NUMBER" '{body: $body, path: $path, line: $line, side: "RIGHT"}')
+              comment_json=$(echo "$comment_json" | jq --argjson comment "$COMMENT_JSON" '. += [$comment]')
             fi
           done < comments.txt
-          comment_json="${comment_json%,}]"
           echo "comments=$comment_json" >> $GITHUB_OUTPUT
 
       - name: Post Line Comments
