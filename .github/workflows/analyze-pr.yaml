@@ -1,6 +1,8 @@
 name: Reusable PR Analysis with LLM
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_call:
     secrets:
       OPENAI_API_KEY:
