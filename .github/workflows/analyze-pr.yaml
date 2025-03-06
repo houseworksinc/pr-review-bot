@@ -90,7 +90,7 @@ jobs:
 
           # Format and save the response
           cat > result.txt << EOF
-          RESULT<<EOFMARKER
+          RESULT=$<<EOFMARKER
           # 🤖 Automated PR Review
 
           $REVIEW_CONTENT
