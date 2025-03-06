@@ -1,6 +1,6 @@
 # PR Analysis with LLM
 
-This repository contains a reusable GitHub Action workflow that automatically analyzes pull requests using OpenAI's GPT-4 model to provide comprehensive code reviews.
+This repository contains a reusable GitHub Action workflow that automatically analyzes pull requests using Google's Gemini model to provide comprehensive code reviews.
 
 ## Overview
 
@@ -16,11 +16,14 @@ The workflow fetches the PR diff and changed files, sends them to OpenAI's API, 
 
 ### Prerequisites
 
-- An OpenAI API key with access to GPT-4
+- A Google API key with access to Gemini 
+  > 💰 **Unlike OpenAI, Google actually gives these API keys away for free!** 
+  > 
+  > You can get one [here](https://aistudio.google.com/apikey)
 
 ### Configuration
 
-1. Add your OpenAI API key as a repository secret named `OPENAI_API_KEY`
+1. Add your Google API key as a repository secret named `GOOGLE_API_KEY`
 
 2. Create a workflow file in your repository that calls this reusable workflow:
 
@@ -35,7 +38,7 @@ jobs:
   analyze-pr:
     uses: houseworksinc/pr-review-bot/.github/workflows/analyze-pr.yaml
     with:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
 ```
 
 
@@ -45,7 +48,7 @@ jobs:
    - Checks out the code
    - Sets up the GitHub CLI
    - Fetches the PR diff and list of changed files
-   - Sends this information to OpenAI's GPT-4
+   - Sends this information to Google's Gemini model
    - Posts the analysis as a comment on the PR
 
 2. The analysis is structured into sections:
@@ -57,11 +60,11 @@ jobs:
 
 ## Customization
 
-You can customize the system prompt and analysis structure by modifying the OpenAI API request in the workflow file.
+You can customize the system prompt and analysis structure by modifying the Gemini API request in the workflow file.
 
 ## Limitations
 
-- The workflow has a token limit based on the OpenAI model used
+- The workflow has a token limit based on the Gemini model used
 - Very large PRs may exceed this limit and result in incomplete analysis
 - The analysis is AI-generated and should be reviewed by human developers
 
