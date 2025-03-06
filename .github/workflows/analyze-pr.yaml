@@ -100,11 +100,6 @@ jobs:
           EOFMARKER
           EOF
 
-          cat result.txt >> $GITHUB_ENV
-
-          echo "RESULT<<EOFMARKER" >> $GITHUB_ENV
-
-
       - name: Comment on PR
         uses: mshick/add-pr-comment@v2
         with:
