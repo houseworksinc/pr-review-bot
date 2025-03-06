@@ -157,7 +157,7 @@ jobs:
               ;;
           esac
 
-        # Save and parse the review content
+          # Save and parse the review content
           echo "$REVIEW_CONTENT" > review_content.txt
           echo "$REVIEW_CONTENT" | grep -E 'FILE:|LINE:|COMMENT:' > comments.txt
 
