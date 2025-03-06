@@ -31,8 +31,8 @@ jobs:
       - name: Fetch PR Files and Diff
         id: pr_diff
         run: |
-          # Get PR diff
-          gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }} > pr_diff.txt
+          # Get PR diff with line numbers
+          gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --patch > pr_diff.txt
           
           # Get list of changed files
           gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json files --jq '.files[].path' > changed_files.txt
@@ -149,3 +149,29 @@ jobs:
         with:
           message: ${{ env.RESULT }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add Line Comments
+        run: |
+          # Parse the review content for line-specific comments
+          # This is a placeholder for the logic to parse and extract line comments
+          # You need to implement the logic to parse the review content and extract line numbers and comments
+          # For example, you can use regex or a custom parser to extract line numbers and comments
+          # Then, use the GitHub API to add line comments
+
+          # Example of adding a line comment using the GitHub API
+          # Replace with actual line number, file path, and comment
+          LINE_NUMBER=10
+          FILE_PATH="src/main.py"
+          COMMENT="This line needs improvement."
+
+          curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "body": "$COMMENT",
+            "path": "$FILE_PATH",
+            "line": $LINE_NUMBER,
+            "side": "RIGHT"
+          }
+          EOF
