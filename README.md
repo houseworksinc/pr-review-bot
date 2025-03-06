@@ -33,7 +33,7 @@ on:
 
 jobs:
   analyze-pr:
-    uses: path/to/this/repo/.github/workflows/analyze-pr.yaml
+    uses: houseworksinc/pr-review-bot/.github/workflows/analyze-pr.yaml
     with:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ```
