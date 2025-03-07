@@ -4,7 +4,7 @@ This repository contains a reusable GitHub Action workflow that automatically an
 
 ## Overview
 
-The workflow fetches the PR diff and changed files, sends them to OpenAI's API, and posts a detailed analysis as a comment on the PR. The analysis covers:
+The workflow fetches the PR diff and changed files, sends them to Gemini's API, and posts a detailed analysis as a comment on the PR. The analysis covers:
 
 - Summary of changes
 - Technical analysis
