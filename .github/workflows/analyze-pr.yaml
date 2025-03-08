@@ -125,13 +125,19 @@ jobs:
           echo "comments=$comment_json" >> $GITHUB_OUTPUT
 
       - name: Post Line Comments
+        id: post_line_comments
         run: |
           comments='${{ steps.parse_comments.outputs.comments }}'
+          echo "Parsed comments: $comments"
           for comment in $(echo "$comments" | jq -c '.[]'); do
+            echo "Posting comment: $comment"
             curl -s -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Content-Type: application/json" \
               -d "$comment"
+            if [ $? -ne 0 ]; then
+              echo "Failed to post comment: $comment"
+            fi
           done
 
 # Unused Comment to be removed
