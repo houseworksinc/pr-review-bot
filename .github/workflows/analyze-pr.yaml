@@ -52,47 +52,14 @@ jobs:
         run: |
           # Create the prompt template
           cat > prompt_template.txt << 'EOF'
-          You are an expert code reviewer. Analyze these code changes thoroughly and provide specific, actionable feedback. Focus on code quality, security, and maintainability. Be concise but comprehensive. If reviewing infrastructure code, pay special attention to security configurations and best practices.
+          You are a concise code reviewer. Analyze this PR and provide a brief summary in 2-3 sentences maximum.
 
-          Review this PR and structure your analysis as follows:
+          Focus only on:
+          - What the PR does (core functionality)
+          - Key impact or changes
+          - Any critical issues (only if present)
 
-          ## 📝 Summary
-          - Core changes and purpose
-          - Files affected
-          - Impact assessment
-          - Breaking changes (if any)
-
-          ## 🔍 Technical Analysis
-          - Implementation quality
-          - Logic issues/bugs
-          - Error handling
-          - Performance implications
-          - Test coverage
-          - Resource management (if applicable)
-
-          ## 🔒 Security Review
-          - Security vulnerabilities
-          - Access control issues
-          - Data protection
-          - Input validation
-          - Sensitive data exposure
-          - Configuration risks
-
-          ## 💡 Code Quality
-          - Naming conventions
-          - Code organization
-          - Documentation completeness
-          - Maintainability
-          - Best practices adherence
-          - Potential refactoring needs
-
-          ## 🎯 Recommendations
-          - Specific improvements
-          - Alternative approaches
-          - Additional tests needed
-          - Documentation updates
-
-          Keep sections focused and actionable. Mark 'No issues identified' if a section has no concerns.
+          Be direct and avoid verbose explanations. If no issues found, just describe the changes.
           EOF
           
           # Combine template with PR context and escape for JSON
@@ -112,7 +79,7 @@ jobs:
               "temperature": 0.7,
               "topK": 40,
               "topP": 0.95,
-              "maxOutputTokens": 2048
+              "maxOutputTokens": 500
             }
           }
           EOF
