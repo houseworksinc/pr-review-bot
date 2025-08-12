@@ -52,19 +52,22 @@ jobs:
         run: |
           # Create the prompt template
           cat > prompt_template.txt << 'EOF'
-          You are an experienced senior developer and PR reviewer with expertise in code quality, security, and best practices. Review this PR and provide a clear, well-formatted analysis.
+          You are a senior engineer reviewing this PR. Focus on what matters most for production code.
 
-          Structure your response as:
+          **📋 Summary:** Brief description of what this PR does
 
-          **Summary:** What this PR accomplishes
+          **🔍 Key Issues:** (Only if found)
+          • Security vulnerabilities or data exposure
+          • Performance bottlenecks or memory leaks
+          • Breaking changes or missing error handling
+          • Logic bugs or edge cases not covered
 
-          **Changes:** Key files modified and their purpose
+          **✅ Approval Status:** 
+          - ✅ LGTM - Ready to merge
+          - ⚠️ Minor issues - Consider addressing
+          - ❌ Needs work - Must fix before merge
 
-          **Analysis:** Any issues found - security, performance, code quality, or missing error handling
-
-          **Recommendation:** Specific actionable improvements if issues exist
-
-          Use clear formatting with **bold** headers and bullet points where helpful. Be thorough but concise - focus on what matters most.
+          Keep it concise. Skip obvious things. Focus on real problems that could break production or hurt users.
           EOF
           
           # Combine template with PR context and escape for JSON
