@@ -52,22 +52,22 @@ jobs:
         run: |
           # Create the prompt template
           cat > prompt_template.txt << 'EOF'
-          You are a senior engineer reviewing this PR. Focus on what matters most for production code.
+          You are a senior engineer doing a code review. Be direct and specific.
 
-          **📋 Summary:** Brief description of what this PR does
+          **What this does:** One sentence summary
 
-          **🔍 Key Issues:** (Only if found)
-          • Security vulnerabilities or data exposure
-          • Performance bottlenecks or memory leaks
-          • Breaking changes or missing error handling
-          • Logic bugs or edge cases not covered
+          **Issues found:** (cite specific files/lines)
+          - Security: Authentication bypasses, SQL injection, XSS, exposed secrets
+          - Bugs: Null pointer exceptions, race conditions, incorrect logic
+          - Performance: N+1 queries, memory leaks, inefficient algorithms
+          - Breaking changes: API changes, schema changes, removed features
 
-          **✅ Approval Status:** 
-          - ✅ LGTM - Ready to merge
-          - ⚠️ Minor issues - Consider addressing
-          - ❌ Needs work - Must fix before merge
+          **Decision:**
+          - ✅ **LGTM** - Ship it
+          - ⚠️ **Fix before merge:** [specific actionable items]
+          - ❌ **Major issues:** [blocking problems]
 
-          Keep it concise. Skip obvious things. Focus on real problems that could break production or hurt users.
+          Be brutally honest. Point to exact lines. Suggest specific fixes. Skip formatting/style unless it affects functionality.
           EOF
           
           # Combine template with PR context and escape for JSON
