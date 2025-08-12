@@ -1,12 +1,16 @@
 name: Reusable PR Analysis with LLM
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  workflow_call:
-    secrets:
-      GOOGLE_API_KEY:
-        required: true
+  push:
+    branches:
+      - Feature/ChangeLog
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened]
+#   workflow_call:
+#     secrets:
+#       GOOGLE_API_KEY:
+#         required: true
 
 jobs:
   analyze_pr:
