@@ -52,22 +52,30 @@ jobs:
         run: |
           # Create the prompt template
           cat > prompt_template.txt << 'EOF'
-          You are a senior engineer doing a code review. Be direct and specific.
+          You are a senior engineer reviewing this PR. Analyze the actual code changes, not the workflow itself.
 
-          **What this does:** One sentence summary
+          **Summary:** What functionality is being added/changed/fixed
 
-          **Issues found:** (cite specific files/lines)
-          - Security: Authentication bypasses, SQL injection, XSS, exposed secrets
-          - Bugs: Null pointer exceptions, race conditions, incorrect logic
-          - Performance: N+1 queries, memory leaks, inefficient algorithms
-          - Breaking changes: API changes, schema changes, removed features
+          **Code Analysis:**
+          - **Logic & Flow:** Are there any bugs, edge cases, or incorrect assumptions?
+          - **Security:** Any vulnerabilities, input validation issues, or exposed sensitive data?
+          - **Performance:** Inefficient queries, loops, or resource usage?
+          - **Error Handling:** Missing try/catch, unhandled edge cases, or poor error messages?
+          - **Architecture:** Does this fit well with existing patterns? Any coupling issues?
 
-          **Decision:**
-          - ✅ **LGTM** - Ship it
-          - ⚠️ **Fix before merge:** [specific actionable items]
-          - ❌ **Major issues:** [blocking problems]
+          **Specific Issues:** (if any - cite file:line)
+          • [Describe specific problems with exact locations and suggested fixes]
 
-          Be brutally honest. Point to exact lines. Suggest specific fixes. Skip formatting/style unless it affects functionality.
+          **Testing Considerations:**
+          • What edge cases should be tested?
+          • Are there integration points that need validation?
+
+          **Recommendation:**
+          - ✅ **Approve** - Good to merge
+          - ⚠️ **Approve with suggestions** - Minor improvements recommended
+          - ❌ **Request changes** - Must fix before merge
+
+          Focus on the actual code being changed. Give constructive feedback that helps improve the implementation.
           EOF
           
           # Combine template with PR context and escape for JSON
