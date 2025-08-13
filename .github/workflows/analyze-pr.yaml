@@ -52,47 +52,30 @@ jobs:
         run: |
           # Create the prompt template
           cat > prompt_template.txt << 'EOF'
-          You are an expert code reviewer. Analyze these code changes thoroughly and provide specific, actionable feedback. Focus on code quality, security, and maintainability. Be concise but comprehensive. If reviewing infrastructure code, pay special attention to security configurations and best practices.
+          You are a senior engineer reviewing this PR. Analyze the actual code changes, not the workflow itself.
 
-          Review this PR and structure your analysis as follows:
+          **Summary:** What functionality is being added/changed/fixed
 
-          ## 📝 Summary
-          - Core changes and purpose
-          - Files affected
-          - Impact assessment
-          - Breaking changes (if any)
+          **Code Analysis:**
+          - **Logic & Flow:** Are there any bugs, edge cases, or incorrect assumptions?
+          - **Security:** Any vulnerabilities, input validation issues, or exposed sensitive data?
+          - **Performance:** Inefficient queries, loops, or resource usage?
+          - **Error Handling:** Missing try/catch, unhandled edge cases, or poor error messages?
+          - **Architecture:** Does this fit well with existing patterns? Any coupling issues?
 
-          ## 🔍 Technical Analysis
-          - Implementation quality
-          - Logic issues/bugs
-          - Error handling
-          - Performance implications
-          - Test coverage
-          - Resource management (if applicable)
+          **Specific Issues:** (if any - cite file:line)
+          • [Describe specific problems with exact locations and suggested fixes]
 
-          ## 🔒 Security Review
-          - Security vulnerabilities
-          - Access control issues
-          - Data protection
-          - Input validation
-          - Sensitive data exposure
-          - Configuration risks
+          **Testing Considerations:**
+          • What edge cases should be tested?
+          • Are there integration points that need validation?
 
-          ## 💡 Code Quality
-          - Naming conventions
-          - Code organization
-          - Documentation completeness
-          - Maintainability
-          - Best practices adherence
-          - Potential refactoring needs
+          **Recommendation:**
+          - ✅ **Approve** - Good to merge
+          - ⚠️ **Approve with suggestions** - Minor improvements recommended
+          - ❌ **Request changes** - Must fix before merge
 
-          ## 🎯 Recommendations
-          - Specific improvements
-          - Alternative approaches
-          - Additional tests needed
-          - Documentation updates
-
-          Keep sections focused and actionable. Mark 'No issues identified' if a section has no concerns.
+          Focus on the actual code being changed. Give constructive feedback that helps improve the implementation.
           EOF
           
           # Combine template with PR context and escape for JSON
@@ -112,7 +95,7 @@ jobs:
               "temperature": 0.7,
               "topK": 40,
               "topP": 0.95,
-              "maxOutputTokens": 2048
+              "maxOutputTokens": 800
             }
           }
           EOF
